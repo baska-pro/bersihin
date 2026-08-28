@@ -17,29 +17,43 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
+
       - name: Compile
         run: python -m py_compile bersihin.py
+
       - name: Unit tests
         run: python -m unittest discover -s tests -v
+
       - name: Version
         run: python bersihin.py --version
+
       - name: Doctor
         run: python bersihin.py --doctor
-      - name: Dry run
+
+      - name: Default JSON dry run
         run: python bersihin.py --dry-run --json
+
+      - name: Full JSON dry run
+        run: python bersihin.py --full --dry-run --json
+
+      - name: No-progress smoke test
+        run: python bersihin.py --dry-run --no-progress
 
   shell-syntax:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - name: Bash syntax
         run: bash -n install.sh uninstall.sh
+
       - name: Local installer smoke test
         run: |
           TEST_HOME="$RUNNER_TEMP/bersihin-home"
           mkdir -p "$TEST_HOME"
           HOME="$TEST_HOME" XDG_DATA_HOME="$TEST_HOME/.local/share" BERSIHIN_SOURCE="$GITHUB_WORKSPACE/bersihin.py" bash ./install.sh
           "$TEST_HOME/.local/bin/bersihin" --doctor
+
       - name: Piped installer smoke test (Termux mode)
         run: |
           TEST_HOME="$RUNNER_TEMP/termux-home"
@@ -48,6 +62,11 @@ jobs:
           HOME="$TEST_HOME" PREFIX="$TEST_PREFIX" BERSIHIN_SOURCE="$GITHUB_WORKSPACE/bersihin.py" bash < install.sh
           "$TEST_PREFIX/bin/bersihin" --doctor
           "$TEST_PREFIX/bin/bersihin" --dry-run --json
+
+      - name: Forced progress smoke test
+        run: |
+          TERM=xterm python bersihin.py --dry-run --force-progress > "$RUNNER_TEMP/progress.log"
+          grep -q "100%" "$RUNNER_TEMP/progress.log"
 
   powershell-syntax:
     runs-on: windows-latest
