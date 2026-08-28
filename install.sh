@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-REPO_RAW="${BERSIHIN_REPO_RAW:-https://raw.githubusercontent.com/baska-pro/bersihin/main/bersihin.py}"
+REPO_RAW="https://raw.githubusercontent.com/baska-pro/bersihin/main/bersihin.py"
 TEMP_SOURCE=""
 SOURCE=""
 
@@ -29,17 +29,17 @@ LOCAL_SOURCE=""
 
 if [[ -n "$SCRIPT_SOURCE" && -f "$SCRIPT_SOURCE" ]]; then
   HERE="$(cd -- "$(dirname -- "$SCRIPT_SOURCE")" 2>/dev/null && pwd)"
-  [[ -f "$HERE/bersihin.py" ]] && LOCAL_SOURCE="$HERE/bersihin.py"
+  if [[ -f "$HERE/bersihin.py" ]]; then
+    LOCAL_SOURCE="$HERE/bersihin.py"
+  fi
 fi
 
-if [[ -n "${BERSIHIN_SOURCE:-}" ]]; then
-  [[ -f "$BERSIHIN_SOURCE" ]] || { echo "[-] BERSIHIN_SOURCE tidak ditemukan: $BERSIHIN_SOURCE" >&2; exit 1; }
-  SOURCE="$BERSIHIN_SOURCE"
-elif [[ -n "$LOCAL_SOURCE" ]]; then
+if [[ -n "$LOCAL_SOURCE" ]]; then
   SOURCE="$LOCAL_SOURCE"
 else
   TEMP_SOURCE="$(mktemp "${TMPDIR:-/tmp}/bersihin.XXXXXX.py")"
   echo "[*] Mengunduh bersihin.py dari GitHub..."
+
   if command -v curl >/dev/null 2>&1; then
     curl -fsSL "$REPO_RAW" -o "$TEMP_SOURCE"
   elif command -v wget >/dev/null 2>&1; then
@@ -48,6 +48,7 @@ else
     echo "[-] curl/wget tidak tersedia. Clone repository lalu jalankan ./install.sh." >&2
     exit 1
   fi
+
   SOURCE="$TEMP_SOURCE"
 fi
 
