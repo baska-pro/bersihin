@@ -4,74 +4,73 @@ on:
   push:
   pull_request:
 
+permissions:
+  contents: read
+
 jobs:
   python:
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
-        python-version: ["3.9", "3.12"]
+        python-version: ["3.9", "3.12", "3.14"]
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: ${{ matrix.python-version }}
-
       - name: Compile
         run: python -m py_compile bersihin.py
-
       - name: Unit tests
         run: python -m unittest discover -s tests -v
-
       - name: Version
         run: python bersihin.py --version
-
       - name: Doctor
         run: python bersihin.py --doctor
-
       - name: Default JSON dry run
         run: python bersihin.py --dry-run --json
-
       - name: Full JSON dry run
         run: python bersihin.py --full --dry-run --json
-
       - name: No-progress smoke test
         run: python bersihin.py --dry-run --no-progress
 
-  shell-syntax:
+  shell-installer:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
       - name: Bash syntax
         run: bash -n install.sh uninstall.sh
-
       - name: Local installer smoke test
         run: |
           TEST_HOME="$RUNNER_TEMP/bersihin-home"
           mkdir -p "$TEST_HOME"
           HOME="$TEST_HOME" XDG_DATA_HOME="$TEST_HOME/.local/share" BERSIHIN_SOURCE="$GITHUB_WORKSPACE/bersihin.py" bash ./install.sh
+          "$TEST_HOME/.local/bin/bersihin" --version
           "$TEST_HOME/.local/bin/bersihin" --doctor
-
-      - name: Piped installer smoke test (Termux mode)
+      - name: Piped installer smoke test (Termux-style)
         run: |
           TEST_HOME="$RUNNER_TEMP/termux-home"
           TEST_PREFIX="$RUNNER_TEMP/data/data/com.termux/files/usr"
           mkdir -p "$TEST_HOME" "$TEST_PREFIX"
-          HOME="$TEST_HOME" PREFIX="$TEST_PREFIX" BERSIHIN_SOURCE="$GITHUB_WORKSPACE/bersihin.py" bash < install.sh
-          "$TEST_PREFIX/bin/bersihin" --doctor
-          "$TEST_PREFIX/bin/bersihin" --dry-run --json
-
+          HOME="$TEST_HOME" PREFIX="$TEST_PREFIX" TERMUX_VERSION="ci" BERSIHIN_SOURCE="$GITHUB_WORKSPACE/bersihin.py" bash < install.sh
+          PREFIX="$TEST_PREFIX" TERMUX_VERSION="ci" "$TEST_PREFIX/bin/bersihin" --doctor | tee "$RUNNER_TEMP/termux-doctor.txt"
+          grep -F "Platform family : termux" "$RUNNER_TEMP/termux-doctor.txt"
       - name: Forced progress smoke test
         run: |
           TERM=xterm python bersihin.py --dry-run --force-progress > "$RUNNER_TEMP/progress.log"
           grep -q "100%" "$RUNNER_TEMP/progress.log"
 
-  powershell-syntax:
+  powershell-installer:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
       - name: Parse PowerShell scripts
         shell: powershell
         run: |
@@ -81,10 +80,37 @@ jobs:
             $errors = $null
             [System.Management.Automation.Language.Parser]::ParseFile($file, [ref]$tokens, [ref]$errors) | Out-Null
             if ($errors.Count -gt 0) {
-              $errors | ForEach-Object {
-                Write-Error ("{0}: {1}" -f $file, $_.Message)
-              }
+              $errors | ForEach-Object { Write-Error ("{0}: {1}" -f $file, $_.Message) }
               $failed = $true
             }
           }
           if ($failed) { exit 1 }
+      - name: Local Windows installer smoke test
+        shell: powershell
+        run: |
+          $env:LOCALAPPDATA = Join-Path $env:RUNNER_TEMP "LocalAppData-local"
+          $env:BERSIHIN_SOURCE = Join-Path $env:GITHUB_WORKSPACE "bersihin.py"
+          & .\install.ps1
+          $cmd = Join-Path $env:LOCALAPPDATA "Programs\Bersihin\bin\bersihin.cmd"
+          & $cmd --version
+          & $cmd --doctor
+      - name: Piped Windows installer smoke test
+        shell: powershell
+        run: |
+          $env:LOCALAPPDATA = Join-Path $env:RUNNER_TEMP "LocalAppData-piped"
+          $env:BERSIHIN_SOURCE = Join-Path $env:GITHUB_WORKSPACE "bersihin.py"
+          Invoke-Expression (Get-Content -Raw -LiteralPath .\install.ps1)
+          $cmd = Join-Path $env:LOCALAPPDATA "Programs\Bersihin\bin\bersihin.cmd"
+          & $cmd --version
+          & $cmd --doctor
+
+  repository-hygiene:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Reject generated Python cache files
+        run: |
+          if git ls-files | grep -E '(^|/)__pycache__/|\.py[co]$'; then
+            echo "Generated Python cache files must not be committed." >&2
+            exit 1
+          fi
