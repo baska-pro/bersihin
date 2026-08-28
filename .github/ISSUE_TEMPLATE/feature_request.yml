@@ -1,0 +1,21 @@
+name: Feature request
+description: Suggest a platform, cache target, or UX improvement
+title: "[Feature]: "
+labels: [enhancement]
+body:
+  - type: input
+    id: platform
+    attributes:
+      label: Platform / tool
+      placeholder: "Windows / Linux / Termux / package manager"
+  - type: textarea
+    id: usecase
+    attributes:
+      label: Use case
+    validations:
+      required: true
+  - type: textarea
+    id: safety
+    attributes:
+      label: Safety considerations
+      description: Explain why the proposed target is reproducible cache/temp data.
