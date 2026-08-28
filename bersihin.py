@@ -12,6 +12,7 @@ import dataclasses
 import datetime as dt
 import fnmatch
 import getpass
+import hashlib
 import json
 import os
 import platform
@@ -1182,15 +1183,30 @@ def _extract_remote_version(source: str) -> str:
     return m.group(1) if m else "unknown"
 
 
+def _source_sha256(data: bytes | str) -> str:
+    """Return a stable SHA-256 fingerprint for source comparison."""
+    if isinstance(data, str):
+        data = data.encode("utf-8")
+    return hashlib.sha256(data).hexdigest()
+
+
+def _windows_recycle_requested(args: argparse.Namespace, env: "Environment") -> bool:
+    return bool(args.trash and env.is_windows)
+
+
 def self_update() -> int:
     info(f"Checking {RAW_SELF_URL}")
     try:
-        req = urllib.request.Request(RAW_SELF_URL, headers={"User-Agent": f"bersihin/{__version__}"})
+        req = urllib.request.Request(
+            RAW_SELF_URL, headers={"User-Agent": f"bersihin/{__version__}"}
+        )
         with urllib.request.urlopen(req, timeout=20) as resp:
-            source = resp.read().decode("utf-8")
+            remote_bytes = resp.read()
+        source = remote_bytes.decode("utf-8")
     except (urllib.error.URLError, OSError, UnicodeError) as exc:
         err(f"Update failed: {exc}")
         return 1
+
     remote_version = _extract_remote_version(source)
     if remote_version == "unknown":
         err("Downloaded file does not look like a valid Bersihin source.")
@@ -1200,27 +1216,45 @@ def self_update() -> int:
     except SyntaxError as exc:
         err(f"Downloaded update failed syntax validation: {exc}")
         return 1
+
     current = Path(__file__).resolve()
     if any(part.lower() in {"site-packages", "dist-packages"} for part in current.parts):
         err("This copy is installed as a Python package. Update the package/source installation instead.")
         return 1
-    if remote_version == __version__:
-        ok(f"Already on the latest published source ({__version__}).")
+    try:
+        current_bytes = current.read_bytes()
+    except OSError as exc:
+        err(f"Cannot read current source for update comparison: {exc}")
+        return 1
+
+    local_hash = _source_sha256(current_bytes)
+    remote_hash = _source_sha256(remote_bytes)
+    if local_hash == remote_hash:
+        ok(f"Already on the latest source ({remote_version}).")
         return 0
+
+    same_version_refresh = remote_version == __version__
+    if same_version_refresh:
+        info(f"Version is still {__version__}, but the source on main has changed. Refreshing this installed copy.")
+
     backup = current.with_suffix(current.suffix + ".bak")
     tmp = current.with_suffix(current.suffix + ".tmp")
     try:
         shutil.copy2(current, backup)
-        tmp.write_text(source, encoding="utf-8", newline="\n")
+        tmp.write_bytes(remote_bytes)
+        compile(tmp.read_text(encoding="utf-8"), str(tmp), "exec")
         os.replace(tmp, current)
-        ok(f"Updated {__version__} -> {remote_version}")
+        if same_version_refresh:
+            ok(f"Source refreshed successfully for version {__version__}.")
+        else:
+            ok(f"Updated {__version__} -> {remote_version}")
         info(f"Backup: {backup}")
+        info(f"SHA-256: {remote_hash[:16]}...")
         return 0
-    except OSError as exc:
+    except (OSError, UnicodeError, SyntaxError) as exc:
         err(f"Cannot replace {current}: {exc}")
         try:
-            if tmp.exists():
-                tmp.unlink()
+            if tmp.exists(): tmp.unlink()
         except OSError:
             pass
         return 1
@@ -1463,6 +1497,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     scan_elapsed = time.time() - started_scan
     result = Result(scanned_bytes=sum(c.size for c in candidates), candidates=len(candidates))
     scanmeta = _scan_summary(scans)
+    windows_recycle = _windows_recycle_requested(args, env)
 
     if args.json:
         payload = {
@@ -1490,6 +1525,10 @@ def main(argv: Sequence[str] | None = None) -> int:
                 for c in candidates
             ],
             "reclaimable_bytes": result.scanned_bytes,
+            "additional_actions": {
+                "windows_recycle_bin": windows_recycle,
+                "windows_recycle_bin_size_known": False if windows_recycle else None,
+            },
         }
         print(json.dumps(payload, indent=2, ensure_ascii=False, default=str))
         return 0
@@ -1533,7 +1572,11 @@ def main(argv: Sequence[str] | None = None) -> int:
         for cand in sorted(candidates, key=lambda c: str(c.path).lower()):
             print(f"  [{cand.category:<10}] {human_bytes(cand.size):>10}  {cand.path}")
 
-    if not candidates and not (args.trash and env.is_windows):
+    if windows_recycle:
+        print("\nAdditional actions:")
+        print("  Windows Recycle Bin : included (size not pre-calculated)")
+
+    if not candidates and not windows_recycle:
         print()
         ok("System is already clean for the selected profile.")
         if too_new and args.older_than > 0:
@@ -1549,6 +1592,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.dry_run:
         print()
         ok(f"Dry-run complete. Nothing deleted. Reclaimable: {human_bytes(result.scanned_bytes)}")
+        if windows_recycle:
+            info("Windows Recycle Bin would be emptied in cleanup mode; its size is not included above.")
         return 0
 
     if args.full:
@@ -1562,8 +1607,15 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     _print_candidate_preview(candidates, env, limit=10)
 
+    if windows_recycle:
+        print("\nAdditional cleanup action:")
+        print("  Windows Recycle Bin : WILL BE EMPTIED")
+
     if not args.yes:
-        ans = input(f"\nClean {len(candidates)} item(s), about {human_bytes(result.scanned_bytes)}? [y/N]: ").strip().lower()
+        prompt = f"Clean {len(candidates)} measured item(s), about {human_bytes(result.scanned_bytes)}"
+        if windows_recycle:
+            prompt += ", and empty the Windows Recycle Bin"
+        ans = input(f"\n{prompt}? [y/N]: ").strip().lower()
         if ans not in {"y", "yes"}:
             info("Cancelled; nothing was deleted.")
             return 0
@@ -1576,106 +1628,73 @@ def main(argv: Sequence[str] | None = None) -> int:
     print("\nCleaning:")
     started = time.time()
     total = len(candidates)
-    live = LiveProgress(enabled=(not args.quiet))
-    processed_bytes = 0
-    clean_state: dict[str, object] = {
-        "idx": 0,
-        "label": "Preparing cleanup",
-        "processed": 0,
-        "current": None,
-        "visual_pct": 0.0,
-    }
+    recycle_bin_emptied = False
 
-    def clean_factory(frame: int) -> str:
-        idx = int(clean_state["idx"])
-        actual_pct = (idx / total * 100.0) if total else 100.0
-        visual = float(clean_state["visual_pct"])
-        if actual_pct > visual:
-            visual = min(actual_pct, visual + PROGRESS_MAX_STEP_PERCENT)
-            clean_state["visual_pct"] = visual
-        pct = int(round(visual))
-        label = _friendly_label(str(clean_state["label"]))
-        bar = _progress_bar(visual, 100.0, pulse=frame)
-        width = _terminal_width()
-        size_text = f"{human_bytes(int(clean_state['processed']))}/{human_bytes(result.scanned_bytes)}"
-        if width < 78:
-            fixed = f"{bar} {pct:3d}% "
-            suffix = f" | {idx}/{total} | {size_text}"
-            room = max(8, width - len(fixed) - len(suffix) - 2)
-            return fixed + _shorten_right(label, room) + suffix
-        current = clean_state["current"]
-        path_text = f" | {_shorten_middle(str(current), 30)}" if isinstance(current, Path) else ""
-        return (
-            f"{bar} {pct:3d}% | {idx}/{total} | {_shorten_right(label, 30)} | "
-            f"{size_text}{path_text}"
-        )
+    if total:
+        live = LiveProgress(enabled=(not args.quiet))
+        processed_bytes = 0
+        clean_state: dict[str, object] = {
+            "idx": 0, "label": "Preparing cleanup", "processed": 0,
+            "current": None, "visual_pct": 0.0,
+        }
 
-    if not args.quiet:
-        live.start(factory=clean_factory)
-
-    try:
-        for idx, cand in enumerate(candidates, 1):
-            item_started = time.time()
-            label = _friendly_label(cand.label)
-            clean_state.update({
-                "idx": idx - 1,
-                "label": label,
-                "processed": processed_bytes,
-                "current": cand.path,
-            })
-            if not args.quiet:
-                live.update(factory=clean_factory)
-
-            success, detail = delete_candidate(cand)
-            item_elapsed = time.time() - item_started
-
-            if success:
-                result.removed += 1
-                result.removed_bytes += cand.size
-                processed_bytes += cand.size
-                clean_state.update({
-                    "idx": idx,
-                    "label": label,
-                    "processed": processed_bytes,
-                    "current": None,
-                })
-                if args.verbose:
-                    live.suspend_line()
-                    print(
-                        f"  [{idx:02d}/{total:02d}] REMOVED {human_bytes(cand.size):>10}  "
-                        f"{_display_path(cand.path, env.home)}",
-                        flush=True,
-                    )
-            else:
-                result.errors += 1
-                live.suspend_line()
-                print(
-                    f"[!] {idx}/{total} {label} | skipped: {detail or 'error'}",
-                    flush=True,
-                )
-                clean_state.update({"idx": idx, "current": None})
+        def clean_factory(frame: int) -> str:
+            idx = int(clean_state["idx"])
+            actual_pct = (idx / total * 100.0) if total else 100.0
+            visual = float(clean_state["visual_pct"])
+            if actual_pct > visual:
+                visual = min(actual_pct, visual + PROGRESS_MAX_STEP_PERCENT)
+                clean_state["visual_pct"] = visual
+            pct = int(round(visual))
+            label = _friendly_label(str(clean_state["label"]))
+            bar = _progress_bar(visual, 100.0, pulse=frame)
+            width = _terminal_width()
+            size_text = f"{human_bytes(int(clean_state['processed']))}/{human_bytes(result.scanned_bytes)}"
+            if width < 78:
+                fixed = f"{bar} {pct:3d}% "
+                suffix = f" | {idx}/{total} | {size_text}"
+                room = max(8, width - len(fixed) - len(suffix) - 2)
+                return fixed + _shorten_right(label, room) + suffix
+            current = clean_state["current"]
+            path_text = f" | {_shorten_middle(str(current), 30)}" if isinstance(current, Path) else ""
+            return f"{bar} {pct:3d}% | {idx}/{total} | {_shorten_right(label, 30)} | {size_text}{path_text}"
 
         if not args.quiet:
-            clean_state.update({
-                "idx": total,
-                "label": "Finalizing cleanup",
-                "processed": processed_bytes,
-                "current": None,
-            })
-            live.update(factory=clean_factory)
-            live.ensure_visible(MIN_CLEAN_ANIMATION_SECONDS)
-    finally:
-        live.stop(clear=True)
+            live.start(factory=clean_factory)
+        try:
+            for idx, cand in enumerate(candidates, 1):
+                label = _friendly_label(cand.label)
+                clean_state.update({"idx": idx-1, "label": label, "processed": processed_bytes, "current": cand.path})
+                if not args.quiet:
+                    live.update(factory=clean_factory)
+                success, detail = delete_candidate(cand)
+                if success:
+                    result.removed += 1
+                    result.removed_bytes += cand.size
+                    processed_bytes += cand.size
+                    clean_state.update({"idx": idx, "label": label, "processed": processed_bytes, "current": None})
+                    if args.verbose:
+                        live.suspend_line()
+                        print(f"  [{idx:02d}/{total:02d}] REMOVED {human_bytes(cand.size):>10}  {_display_path(cand.path, env.home)}", flush=True)
+                else:
+                    result.errors += 1
+                    live.suspend_line()
+                    print(f"[!] {idx}/{total} {label} | skipped: {detail or 'error'}", flush=True)
+                    clean_state.update({"idx": idx, "current": None})
+            if not args.quiet:
+                clean_state.update({"idx": total, "label": "Finalizing cleanup", "processed": processed_bytes, "current": None})
+                live.update(factory=clean_factory)
+                live.ensure_visible(MIN_CLEAN_ANIMATION_SECONDS)
+        finally:
+            live.stop(clear=True)
+        print(f"[+] Cleanup pass complete: {result.removed}/{total} item(s) processed | {human_bytes(result.removed_bytes)} reclaimed", flush=True)
+    else:
+        info("No measured file candidates. Processing additional cleanup actions only.")
 
-    print(
-        f"[+] Cleanup pass complete: {result.removed}/{total} item(s) processed | "
-        f"{human_bytes(result.removed_bytes)} reclaimed",
-        flush=True,
-    )
-
-    if args.trash and env.is_windows:
+    if windows_recycle:
         success, detail = empty_windows_recycle_bin(dry_run=False)
         if success:
+            recycle_bin_emptied = True
             ok("Windows Recycle Bin emptied.")
         else:
             result.errors += 1
@@ -1691,6 +1710,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     print("\nCleanup summary:")
     print(f"  Removed             : {result.removed} item(s)")
     print(f"  Estimated reclaimed : {human_bytes(result.removed_bytes)}")
+    if windows_recycle:
+        print(f"  Recycle Bin         : {'emptied' if recycle_bin_emptied else 'failed/skipped'}")
+        print("  Recycle Bin note    : its size is not included in the measured reclaimable total")
     if disk_delta:
         print(f"  Filesystem delta    : {human_bytes(disk_delta)}")
         if disk_delta != result.removed_bytes:

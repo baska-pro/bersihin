@@ -1,0 +1,9 @@
+DELETE THIS TRACKED GENERATED FILE:
+
+__pycache__/bersihin.cpython-313.pyc
+
+The existing .gitignore is already correct. From a clone:
+
+    git rm -r __pycache__
+
+Then commit the deletion together with these fixes.

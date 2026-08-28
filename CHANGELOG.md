@@ -15,6 +15,12 @@
 
 ### Changed
 
+- `bersihin --update` now compares source SHA-256 as well as the version, so changed Unreleased source can refresh an installed copy even while it still reports `2.0.2`.
+- Windows Recycle Bin cleanup is explicitly disclosed in dry-run, confirmation, JSON metadata, and cleanup summary.
+- Windows quick-install now distinguishes piped execution from a local installer file, validates Python 3.9+, validates every source mode, and verifies the installed command.
+- Unix installer accepts `BERSIHIN_SOURCE` for hermetic/offline CI verification and atomically replaces its wrapper.
+- CI now covers Python 3.9/3.12/3.14, real Unix and Windows installer smoke tests, and repository hygiene.
+
 - Fast interactive scans keep the visual progress visible briefly instead of flashing from 0% to 100%.
 - Missing/unavailable targets are hidden from normal output and summarized; `--verbose` shows them.
 - Narrow-terminal output preserves counters and durations before labels.
