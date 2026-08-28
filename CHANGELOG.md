@@ -1,5 +1,21 @@
 # Changelog
 
+## 2.0.2 - 2026-08-28
+
+### Fixed
+
+- Fixed `curl .../install.sh | bash` on Termux and other Bash environments where
+  `BASH_SOURCE[0]` is unavailable while the installer is read from standard input.
+- The Unix installer now validates both local and downloaded `bersihin.py` before installation.
+- The installed source is replaced only after the new copy is complete.
+
+### Changed
+
+- Added post-install `bersihin --version` verification.
+- Added GitHub Actions smoke tests for clone/local installation and piped Termux-style installation.
+- Expanded README and installation documentation to distinguish downloading,
+  cloning, and actually executing the installer.
+
 ## 2.0.1 - 2026-08-28
 
 ### Fixed
