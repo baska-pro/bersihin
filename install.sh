@@ -1,71 +1,107 @@
-name: CI
+#!/usr/bin/env bash
+set -euo pipefail
 
-on:
-  push:
-  pull_request:
+REPO_RAW="${BERSIHIN_REPO_RAW:-https://raw.githubusercontent.com/baska-pro/bersihin/main/bersihin.py}"
+TEMP_SOURCE=""
+SOURCE=""
 
-jobs:
-  python:
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
-        python-version: ["3.9", "3.12"]
-    runs-on: ${{ matrix.os }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: ${{ matrix.python-version }}
-      - name: Compile
-        run: python -m py_compile bersihin.py
-      - name: Unit tests
-        run: python -m unittest discover -s tests -v
-      - name: Version
-        run: python bersihin.py --version
-      - name: Doctor
-        run: python bersihin.py --doctor
-      - name: Dry run
-        run: python bersihin.py --dry-run --json
+cleanup() {
+  [[ -n "$TEMP_SOURCE" ]] && rm -f "$TEMP_SOURCE" 2>/dev/null || true
+}
+trap cleanup EXIT
 
-  shell-syntax:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Bash syntax
-        run: bash -n install.sh uninstall.sh
-      - name: Local installer smoke test
-        run: |
-          TEST_HOME="$RUNNER_TEMP/bersihin-home"
-          mkdir -p "$TEST_HOME"
-          HOME="$TEST_HOME" XDG_DATA_HOME="$TEST_HOME/.local/share" BERSIHIN_SOURCE="$GITHUB_WORKSPACE/bersihin.py" bash ./install.sh
-          "$TEST_HOME/.local/bin/bersihin" --doctor
-      - name: Piped installer smoke test (Termux mode)
-        run: |
-          TEST_HOME="$RUNNER_TEMP/termux-home"
-          TEST_PREFIX="$RUNNER_TEMP/data/data/com.termux/files/usr"
-          mkdir -p "$TEST_HOME" "$TEST_PREFIX"
-          HOME="$TEST_HOME" PREFIX="$TEST_PREFIX" BERSIHIN_SOURCE="$GITHUB_WORKSPACE/bersihin.py" bash < install.sh
-          "$TEST_PREFIX/bin/bersihin" --doctor
-          "$TEST_PREFIX/bin/bersihin" --dry-run --json
+if command -v python3 >/dev/null 2>&1; then
+  PYTHON_BIN="$(command -v python3)"
+elif command -v python >/dev/null 2>&1; then
+  PYTHON_BIN="$(command -v python)"
+else
+  echo "[-] Python 3 tidak ditemukan. Install Python 3.9+ terlebih dahulu." >&2
+  exit 1
+fi
 
-  powershell-syntax:
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Parse PowerShell scripts
-        shell: powershell
-        run: |
-          $failed = $false
-          foreach ($file in @('install.ps1', 'uninstall.ps1')) {
-            $tokens = $null
-            $errors = $null
-            [System.Management.Automation.Language.Parser]::ParseFile($file, [ref]$tokens, [ref]$errors) | Out-Null
-            if ($errors.Count -gt 0) {
-              $errors | ForEach-Object {
-                Write-Error ("{0}: {1}" -f $file, $_.Message)
-              }
-              $failed = $true
-            }
-          }
-          if ($failed) { exit 1 }
+if ! "$PYTHON_BIN" -c 'import sys; raise SystemExit(0 if sys.version_info >= (3,9) else 1)'; then
+  echo "[-] Dibutuhkan Python 3.9+; ditemukan: $($PYTHON_BIN --version 2>&1)" >&2
+  exit 1
+fi
+
+SCRIPT_SOURCE="${BASH_SOURCE[0]:-}"
+LOCAL_SOURCE=""
+
+if [[ -n "$SCRIPT_SOURCE" && -f "$SCRIPT_SOURCE" ]]; then
+  HERE="$(cd -- "$(dirname -- "$SCRIPT_SOURCE")" 2>/dev/null && pwd)"
+  [[ -f "$HERE/bersihin.py" ]] && LOCAL_SOURCE="$HERE/bersihin.py"
+fi
+
+if [[ -n "${BERSIHIN_SOURCE:-}" ]]; then
+  [[ -f "$BERSIHIN_SOURCE" ]] || { echo "[-] BERSIHIN_SOURCE tidak ditemukan: $BERSIHIN_SOURCE" >&2; exit 1; }
+  SOURCE="$BERSIHIN_SOURCE"
+elif [[ -n "$LOCAL_SOURCE" ]]; then
+  SOURCE="$LOCAL_SOURCE"
+else
+  TEMP_SOURCE="$(mktemp "${TMPDIR:-/tmp}/bersihin.XXXXXX.py")"
+  echo "[*] Mengunduh bersihin.py dari GitHub..."
+  if command -v curl >/dev/null 2>&1; then
+    curl -fsSL "$REPO_RAW" -o "$TEMP_SOURCE"
+  elif command -v wget >/dev/null 2>&1; then
+    wget -qO "$TEMP_SOURCE" "$REPO_RAW"
+  else
+    echo "[-] curl/wget tidak tersedia. Clone repository lalu jalankan ./install.sh." >&2
+    exit 1
+  fi
+  SOURCE="$TEMP_SOURCE"
+fi
+
+if ! "$PYTHON_BIN" -m py_compile "$SOURCE"; then
+  echo "[-] Validasi bersihin.py gagal. Instalasi dibatalkan." >&2
+  exit 1
+fi
+
+IS_TERMUX=false
+if [[ -n "${PREFIX:-}" && "$PREFIX" == *com.termux* ]] || [[ -d /data/data/com.termux/files/usr ]]; then
+  IS_TERMUX=true
+fi
+
+if $IS_TERMUX; then
+  INSTALL_DIR="${PREFIX}/share/bersihin"
+  BIN_DIR="${PREFIX}/bin"
+else
+  INSTALL_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/bersihin"
+  BIN_DIR="$HOME/.local/bin"
+fi
+
+mkdir -p "$INSTALL_DIR" "$BIN_DIR"
+
+INSTALL_TMP="$INSTALL_DIR/.bersihin.py.tmp.$$"
+cp "$SOURCE" "$INSTALL_TMP"
+chmod 644 "$INSTALL_TMP"
+mv -f "$INSTALL_TMP" "$INSTALL_DIR/bersihin.py"
+
+rm -f "$BIN_DIR/bersihin"
+cat > "$BIN_DIR/bersihin" <<EOF
+#!/usr/bin/env sh
+exec "$PYTHON_BIN" "$INSTALL_DIR/bersihin.py" "\$@"
+EOF
+chmod 755 "$BIN_DIR/bersihin"
+
+printf '[+] Bersihin terpasang: %s\n' "$INSTALL_DIR/bersihin.py"
+printf '[+] Command: %s\n' "$BIN_DIR/bersihin"
+
+case ":$PATH:" in
+  *":$BIN_DIR:"*) ;;
+  *)
+    echo "[!] $BIN_DIR belum ada di PATH."
+    echo "    Tambahkan ke ~/.bashrc / ~/.zshrc:"
+    echo "    export PATH=\"$BIN_DIR:\$PATH\""
+    ;;
+esac
+
+if [[ -f "$HOME/.bersihin/bersihin.sh" ]]; then
+  echo "[!] Instalasi Bash v1 lama terdeteksi di ~/.bersihin."
+  echo "    Command 'bersihin' sudah diarahkan ke v2; folder lama boleh dihapus setelah verifikasi."
+fi
+
+echo "[*] Verifikasi instalasi..."
+"$BIN_DIR/bersihin" --version
+
+echo "[*] Cek platform: bersihin --doctor"
+echo "[*] Scan aman:    bersihin --dry-run --verbose"
