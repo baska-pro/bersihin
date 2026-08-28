@@ -1,0 +1,32 @@
+name: Bug report
+description: Report a reproducible Bersihin issue
+title: "[Bug]: "
+labels: [bug]
+body:
+  - type: input
+    id: version
+    attributes:
+      label: Bersihin version
+      placeholder: "2.0.0"
+    validations:
+      required: true
+  - type: input
+    id: platform
+    attributes:
+      label: Platform
+      placeholder: "Windows 11 / Ubuntu 24.04 / Termux / WSL / macOS"
+    validations:
+      required: true
+  - type: textarea
+    id: command
+    attributes:
+      label: Command and dry-run output
+      description: Redact private paths or sensitive information.
+    validations:
+      required: true
+  - type: textarea
+    id: behavior
+    attributes:
+      label: Expected vs actual behavior
+    validations:
+      required: true
