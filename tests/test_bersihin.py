@@ -130,6 +130,22 @@ class BersihinTests(unittest.TestCase):
             self.assertEqual(row.eligible, 1)
             self.assertGreaterEqual(row.bytes, 1)
 
+    def test_source_sha256_is_stable(self):
+        self.assertEqual(bersihin._source_sha256(b"abc"), bersihin._source_sha256("abc"))
+        self.assertNotEqual(bersihin._source_sha256(b"abc"), bersihin._source_sha256(b"abcd"))
+
+    def test_windows_recycle_request_helper(self):
+        args = bersihin.build_parser().parse_args(["--trash", "--dry-run"])
+        env = bersihin.detect_environment()
+        fake_env = bersihin.dataclasses.replace(env, is_windows=True)
+        self.assertTrue(bersihin._windows_recycle_requested(args, fake_env))
+
+    def test_windows_recycle_dry_run_has_no_shell_call(self):
+        with mock.patch.object(bersihin.os, "name", "nt"):
+            ok, detail = bersihin.empty_windows_recycle_bin(dry_run=True)
+        self.assertTrue(ok)
+        self.assertIn("would be emptied", detail)
+
 
 if __name__ == "__main__":
     unittest.main()
