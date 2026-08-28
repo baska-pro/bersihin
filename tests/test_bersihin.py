@@ -19,6 +19,12 @@ class BersihinTests(unittest.TestCase):
         if Path("/").exists():
             self.assertTrue(bersihin._is_dangerous_target(Path("/"), env))
 
+    def test_same_owner_helper(self):
+        with tempfile.TemporaryDirectory() as td:
+            p = Path(td) / "owned.tmp"
+            p.write_text("x")
+            self.assertIsInstance(bersihin._same_owner(p), bool)
+
     def test_old_age_filter(self):
         with tempfile.TemporaryDirectory() as td:
             p = Path(td) / "new.tmp"

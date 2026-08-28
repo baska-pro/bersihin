@@ -27,7 +27,7 @@ import urllib.request
 from pathlib import Path
 from typing import Iterable, Iterator, Sequence
 
-__version__ = "2.0.0"
+__version__ = "2.0.1"
 APP_NAME = "Bersihin"
 REPO = "baska-pro/bersihin"
 RAW_SELF_URL = f"https://raw.githubusercontent.com/{REPO}/main/bersihin.py"
@@ -252,7 +252,7 @@ def _same_owner(path: Path) -> bool:
     if os.name == "nt" or not hasattr(os, "geteuid"):
         return True
     try:
-        return path.stat(follow_symlinks=False).st_uid == os.geteuid()
+        return os.stat(path, follow_symlinks=False).st_uid == os.geteuid()
     except OSError:
         return False
 
@@ -297,7 +297,7 @@ def _old_enough(path: Path, age_days: int, now: float) -> bool:
     if age_days <= 0:
         return True
     try:
-        return now - path.stat(follow_symlinks=False).st_mtime >= age_days * 86400
+        return now - os.stat(path, follow_symlinks=False).st_mtime >= age_days * 86400
     except OSError:
         return False
 

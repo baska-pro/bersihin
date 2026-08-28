@@ -2,7 +2,9 @@
 
 **Bersihin** adalah CLI cleaner lintas platform yang otomatis mendeteksi **Windows, Linux, Termux, WSL, macOS, BSD, dan POSIX lainnya**.
 
-Versi **2.0.0** merupakan rewrite dengan fokus utama pada keamanan: tidak lagi menghapus seluruh `/tmp`, `~/.cache`, log sistem, atau menjalankan `apt autoremove` secara otomatis.
+Versi **2.0.1** merupakan maintenance release dari rewrite v2 dengan fokus utama pada keamanan: tidak lagi menghapus seluruh `/tmp`, `~/.cache`, log sistem, atau menjalankan `apt autoremove` secara otomatis.
+
+> **Perbaikan v2.0.1:** kompatibilitas runtime Python 3.9 diperbaiki, validasi PowerShell di GitHub Actions diperbaiki, dan teks lisensi MIT dilengkapi.
 
 ## Fitur Utama
 

@@ -5,12 +5,13 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-2.0.0-111827?style=flat-square" alt="Version 2.0.0">
+  <img src="https://img.shields.io/badge/version-2.0.1-111827?style=flat-square" alt="Version 2.0.1">
   <img src="https://img.shields.io/badge/Python-3.9%2B-3776AB?style=flat-square&logo=python&logoColor=white" alt="Python 3.9+">
   <img src="https://img.shields.io/badge/Windows-supported-0078D4?style=flat-square&logo=windows11&logoColor=white" alt="Windows">
   <img src="https://img.shields.io/badge/Linux-supported-FCC624?style=flat-square&logo=linux&logoColor=111827" alt="Linux">
   <img src="https://img.shields.io/badge/Termux-supported-111827?style=flat-square" alt="Termux">
   <img src="https://img.shields.io/badge/license-MIT-16A34A?style=flat-square" alt="MIT">
+  <a href="https://github.com/baska-pro/bersihin/actions/workflows/ci.yml"><img src="https://github.com/baska-pro/bersihin/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
 </p>
 
 <p align="center">
@@ -27,7 +28,9 @@
 
 **Bersihin** automatically detects Windows, Linux, Termux, WSL, macOS, BSD and other POSIX-like environments, then builds a cleanup plan appropriate for that platform.
 
-Version 2 is a rewrite focused on **safer cleanup**. It does not blindly wipe `/tmp`, `~/.cache`, system logs, or package-manager data. Default cleanup targets known temporary/development caches, uses age limits for temp files, avoids symlinks and protected roots, and asks for confirmation before deletion.
+Version 2 is a rewrite focused on **safer cleanup**.
+
+> **v2.0.1 maintenance release:** fixes Python 3.9 runtime compatibility, GitHub Actions PowerShell validation, and restores the complete MIT License text. It does not blindly wipe `/tmp`, `~/.cache`, system logs, or package-manager data. Default cleanup targets known temporary/development caches, uses age limits for temp files, avoids symlinks and protected roots, and asks for confirmation before deletion.
 
 ## Highlights
 

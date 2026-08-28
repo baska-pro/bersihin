@@ -1,5 +1,21 @@
 # Changelog
 
+## 2.0.1 - 2026-08-28
+
+### Fixed
+
+- Fixed Python 3.9 compatibility in file ownership and age checks by using
+  `os.stat(..., follow_symlinks=False)` instead of the newer `Path.stat()`
+  keyword argument.
+- Fixed GitHub Actions PowerShell syntax-validation step.
+- Restored the complete standard MIT License text.
+
+### Changed
+
+- GitHub Actions matrix now uses `fail-fast: false` so one failed platform does
+  not cancel the remaining Windows, Linux, or macOS validation jobs.
+- Added regression coverage for the POSIX ownership helper.
+
 ## 2.0.0 - 2026-08-28
 
 ### Added
