@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-2.0.1-111827?style=flat-square" alt="Version 2.0.1">
+  <img src="https://img.shields.io/badge/version-2.0.2-111827?style=flat-square" alt="Version 2.0.2">
   <img src="https://img.shields.io/badge/Python-3.9%2B-3776AB?style=flat-square&logo=python&logoColor=white" alt="Python 3.9+">
   <img src="https://img.shields.io/badge/Windows-supported-0078D4?style=flat-square&logo=windows11&logoColor=white" alt="Windows">
   <img src="https://img.shields.io/badge/Linux-supported-FCC624?style=flat-square&logo=linux&logoColor=111827" alt="Linux">
@@ -30,7 +30,7 @@
 
 Version 2 is a rewrite focused on **safer cleanup**.
 
-> **v2.0.1 maintenance release:** fixes Python 3.9 runtime compatibility, GitHub Actions PowerShell validation, and restores the complete MIT License text. It does not blindly wipe `/tmp`, `~/.cache`, system logs, or package-manager data. Default cleanup targets known temporary/development caches, uses age limits for temp files, avoids symlinks and protected roots, and asks for confirmation before deletion.
+> **v2.0.2 maintenance release:** fixes Unix/Termux quick installation through `curl ... | bash`, adds installer smoke tests, and clarifies installation instructions. Bersihin still keeps the safer v2 cleanup defaults: it does not blindly wipe `/tmp`, `~/.cache`, system logs, or package-manager data.
 
 ## Highlights
 
@@ -89,17 +89,38 @@ install.cmd
 
 ### Linux / Termux / WSL / macOS
 
-Quick install:
+Quick install — this command downloads **and executes** the installer:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/baska-pro/bersihin/main/install.sh | bash
 ```
 
-Or from a clone:
+> Running `curl -fsSL https://raw.githubusercontent.com/baska-pro/bersihin/main/install.sh` **without** `| bash` only prints the installer script; it does not install Bersihin.
+
+To inspect the installer before running it:
 
 ```bash
+curl -fsSL https://raw.githubusercontent.com/baska-pro/bersihin/main/install.sh -o install.sh
+less install.sh
+bash install.sh
+```
+
+Or install from a Git clone:
+
+```bash
+git clone https://github.com/baska-pro/bersihin.git
+cd bersihin
 chmod +x install.sh
 ./install.sh
+```
+
+After installation:
+
+```bash
+hash -r 2>/dev/null || true
+bersihin --version
+bersihin --doctor
+bersihin --dry-run --verbose
 ```
 
 ### Git clone
