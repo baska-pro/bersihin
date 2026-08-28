@@ -2,19 +2,16 @@
 
 Before publishing a release:
 
-- [ ] Update `__version__` in `bersihin.py`.
-- [ ] Update `VERSION`.
-- [ ] Update version in `pyproject.toml`.
-- [ ] Update `CHANGELOG.md`.
-- [ ] Update README files if behavior/compatibility changed.
+- [ ] Update `__version__`, `VERSION`, and `pyproject.toml`.
+- [ ] Move relevant **Unreleased** changelog entries into the release section.
 - [ ] `python -m py_compile bersihin.py` passes.
 - [ ] `python -m unittest discover -s tests -v` passes.
-- [ ] `bash -n install.sh uninstall.sh` passes.
-- [ ] Test `--doctor` on affected platforms.
-- [ ] Test `--dry-run --verbose` on affected platforms.
-- [ ] Confirm dry-run never deletes anything.
-- [ ] Review all new cleanup roots for safety.
-- [ ] Confirm no token, password, API key, personal file, or machine-specific secret is committed.
-- [ ] Verify quick-install URLs point to `baska-pro/bersihin`.
-- [ ] Create tag `vX.Y.Z` without rewriting old release tags.
-- [ ] Attach tested `bersihin.py`, `install.sh`, and `install.ps1` to GitHub Release.
+- [ ] Bash installer syntax and real installer smoke tests pass.
+- [ ] PowerShell parser and real Windows installer smoke tests pass.
+- [ ] CI passes on Python 3.9, 3.12 and 3.14.
+- [ ] Test `--doctor`, `--dry-run`, and real cleanup on affected real platforms.
+- [ ] Test same-version/different-source `bersihin --update`.
+- [ ] Verify Windows Recycle Bin cleanup is explicitly disclosed before deletion.
+- [ ] Confirm no `__pycache__`, `.pyc`, build output, token, password, API key, personal file, or machine-specific secret is committed.
+- [ ] Verify quick-install URLs still point to `baska-pro/bersihin`.
+- [ ] Create a new immutable tag only after CI and real-platform tests pass.

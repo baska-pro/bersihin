@@ -1,23 +1,21 @@
 # Updating Bersihin
 
-Current version: `2.0.2`.
+Current development version: `2.0.2`.
+
+The `main` branch may contain **Unreleased** source changes while the visible version remains `2.0.2`.
 
 ## Git clone
 
 ```bash
 cd bersihin
 git pull
-```
-
-Re-run the installer if you want to refresh an installed user copy:
-
-```bash
 ./install.sh
 ```
 
-or on Windows:
+Windows:
 
 ```powershell
+git pull
 .\install.ps1
 ```
 
@@ -27,36 +25,10 @@ or on Windows:
 bersihin --update
 ```
 
-The updater:
+The updater downloads `main`, validates it, compares both the version and SHA-256 source fingerprint, creates a `.bak`, validates the temporary replacement, and atomically activates the new source.
 
-1. downloads `bersihin.py` from the repository main branch;
-2. extracts the remote version;
-3. compiles the source in memory to detect syntax errors;
-4. creates a `.bak` backup of the currently installed source;
-5. atomically replaces the file.
+If local and remote both report `2.0.2` but their source hashes differ, the source is refreshed instead of incorrectly reporting that it is already current. This behavior is useful while Unreleased work remains on `main`.
 
-## Maintainer release checklist
+Package-managed installs inside `site-packages` / `dist-packages` must be updated using the package/source installation method instead.
 
-For feature additions:
-
-```text
-2.0.2 -> 2.1.0
-```
-
-For bug fixes:
-
-```text
-2.0.2 -> 2.0.3
-```
-
-Update at minimum:
-
-```text
-bersihin.py (__version__)
-VERSION
-pyproject.toml
-CHANGELOG.md
-README.md / README.id.md when behavior changes
-```
-
-Create a matching GitHub Release tag such as `v2.0.3` or `v2.1.0`.
+The version should only be bumped when the next release is finalized.
