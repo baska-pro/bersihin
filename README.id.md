@@ -2,9 +2,9 @@
 
 **Bersihin** adalah CLI cleaner lintas platform yang otomatis mendeteksi **Windows, Linux, Termux, WSL, macOS, BSD, dan POSIX lainnya**.
 
-Versi **2.0.1** merupakan maintenance release dari rewrite v2 dengan fokus utama pada keamanan: tidak lagi menghapus seluruh `/tmp`, `~/.cache`, log sistem, atau menjalankan `apt autoremove` secara otomatis.
+Versi **2.0.2** merupakan maintenance release dari rewrite v2 dengan fokus utama pada keamanan: tidak lagi menghapus seluruh `/tmp`, `~/.cache`, log sistem, atau menjalankan `apt autoremove` secara otomatis.
 
-> **Perbaikan v2.0.1:** kompatibilitas runtime Python 3.9 diperbaiki, validasi PowerShell di GitHub Actions diperbaiki, dan teks lisensi MIT dilengkapi.
+> **Perbaikan v2.0.2:** quick installer Linux/Termux/WSL/macOS melalui `curl ... | bash` diperbaiki, installer sekarang diverifikasi otomatis, dan CI menguji mode install langsung maupun piped installer.
 
 ## Fitur Utama
 
@@ -50,17 +50,38 @@ atau jalankan `install.cmd`.
 
 ### Linux / Termux / WSL / macOS
 
-Install cepat:
+Install cepat — command berikut **mengunduh sekaligus menjalankan** installer:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/baska-pro/bersihin/main/install.sh | bash
 ```
 
+> Jika hanya menjalankan `curl -fsSL https://raw.githubusercontent.com/baska-pro/bersihin/main/install.sh` tanpa `| bash`, isi script hanya ditampilkan ke terminal dan Bersihin **belum terpasang**.
+
+Jika ingin memeriksa installer lebih dulu:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/baska-pro/bersihin/main/install.sh -o install.sh
+less install.sh
+bash install.sh
+```
+
 Atau dari clone:
 
 ```bash
+git clone https://github.com/baska-pro/bersihin.git
+cd bersihin
 chmod +x install.sh
 ./install.sh
+```
+
+Setelah instalasi:
+
+```bash
+hash -r 2>/dev/null || true
+bersihin --version
+bersihin --doctor
+bersihin --dry-run --verbose
 ```
 
 ## Penggunaan
