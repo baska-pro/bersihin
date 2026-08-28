@@ -4,7 +4,7 @@ Bersihin v2 is designed around an allowlist instead of "delete everything that l
 
 ## Default profile
 
-The normal profile targets known user/development caches and old temporary entries.
+The normal profile targets known user/development caches and age-filtered temporary/log entries.
 
 It avoids:
 
@@ -12,46 +12,76 @@ It avoids:
 - the user's home directory itself;
 - Windows system roots;
 - symlink traversal;
-- POSIX temp entries owned by other users;
+- POSIX temporary entries owned by other users;
 - system logs;
 - package autoremove;
 - Docker prune;
 - browser caches unless requested;
-- Trash/Recycle Bin unless requested.
+- Trash/Recycle Bin unless requested;
+- broad generic user caches unless requested.
+
+Project scanning also prunes dependency/build/repository metadata directories where appropriate so the cleaner does not unnecessarily traverse or target unrelated project data.
+
+## Age filtering
+
+The default age threshold is conservative for temporary/log-like targets.
+
+Preview fresh entries with:
+
+```bash
+bersihin --older-than 0 --dry-run
+```
+
+The scan summary reports how many matched entries were skipped because they were too new.
 
 ## `--system`
 
-Includes supported package download caches and Windows Temp. It may require Administrator/root access.
+Includes supported additional system/package caches. Some targets may require Administrator/root privileges.
 
 It does not remove installed packages.
 
 ## `--trash`
 
-Empties the user's Trash locations. On Windows it uses the Recycle Bin shell API instead of deleting `$Recycle.Bin` manually.
+Includes the user's Trash locations. On Windows, Recycle Bin cleanup uses the shell API rather than manually deleting `$Recycle.Bin`.
 
 ## `--browsers`
 
-Targets cache subdirectories only. Close browsers before cleaning to reduce locked-file errors.
+Targets known browser cache locations only. Close browsers before cleaning to reduce locked-file errors.
 
 ## `--aggressive`
 
-Adds broad user cache roots such as `~/.cache` or `~/Library/Caches`.
+Adds broad user-cache roots. Applications may rebuild caches and some sessions can require reauthentication.
 
-Use a dry run first:
+Always preview first:
 
 ```bash
 bersihin --aggressive --dry-run
 ```
 
-Applications may rebuild caches and some sessions can require reauthentication.
+## `--full`
 
-## Dry run first
+`--full` enables the broader opt-in scopes together:
 
-Recommended before any optional scope:
+```text
+system + trash + browsers + aggressive
+```
+
+It is intended for an explicit broader cleanup, not as the default safety profile.
+
+Recommended:
 
 ```bash
-bersihin --system --dry-run
-bersihin --trash --dry-run
-bersihin --browsers --dry-run
-bersihin --aggressive --dry-run
+bersihin --full --dry-run
 ```
+
+before:
+
+```bash
+bersihin --full
+```
+
+## Progress and safety
+
+The realtime progress renderer only changes terminal presentation. It does not expand cleanup scope or bypass confirmation.
+
+`--no-progress` and JSON mode use the same scan/cleanup rules without animation.
