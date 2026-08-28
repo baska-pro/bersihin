@@ -1,6 +1,6 @@
 # Updating Bersihin
 
-Current version: `2.0.1`.
+Current version: `2.0.2`.
 
 ## Git clone
 
@@ -40,13 +40,13 @@ The updater:
 For feature additions:
 
 ```text
-2.0.1 -> 2.1.0
+2.0.2 -> 2.1.0
 ```
 
 For bug fixes:
 
 ```text
-2.0.1 -> 2.0.2
+2.0.2 -> 2.0.3
 ```
 
 Update at minimum:
@@ -59,4 +59,4 @@ CHANGELOG.md
 README.md / README.id.md when behavior changes
 ```
 
-Create a matching GitHub Release tag such as `v2.0.2` or `v2.1.0`.
+Create a matching GitHub Release tag such as `v2.0.3` or `v2.1.0`.
