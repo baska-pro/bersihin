@@ -27,7 +27,7 @@ import urllib.request
 from pathlib import Path
 from typing import Iterable, Iterator, Sequence
 
-__version__ = "2.0.1"
+__version__ = "2.0.2"
 APP_NAME = "Bersihin"
 REPO = "baska-pro/bersihin"
 RAW_SELF_URL = f"https://raw.githubusercontent.com/{REPO}/main/bersihin.py"
