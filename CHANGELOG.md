@@ -1,5 +1,33 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- Realtime progress rendering for interactive terminals.
+- Smooth percentage progress bar designed for narrow Termux/mobile terminals.
+- `--full` profile for enabling the broader opt-in cleanup scopes together.
+- `--no-progress` / `--quiet` for disabling interactive progress.
+- `--force-progress` for terminals where TTY detection is unreliable.
+- Detailed scan accounting for checked, matched, eligible, too-new, skipped/pruned and error entries.
+- Automatic project-cache discovery with project-specific Python/Node/build-cache rules.
+- Richer scan and cleanup summaries, including reclaimable-by-target/category information.
+
+### Changed
+
+- Fast interactive scans keep the visual progress visible briefly instead of flashing from 0% to 100%.
+- Missing/unavailable targets are hidden from normal output and summarized; `--verbose` shows them.
+- Narrow-terminal output preserves counters and durations before labels.
+- Project traversal prunes known large/unnecessary directories such as repository metadata and dependency/build trees where appropriate.
+- Cleanup progress uses the same responsive progress renderer as scanning.
+- Very short durations are displayed in milliseconds.
+
+### Safety
+
+- Default cleanup remains conservative and allowlist-based.
+- Browser, Trash/Recycle Bin, broad user caches and additional system scopes remain opt-in.
+- The repository version intentionally remains `2.0.2` until this development set is finalized for release.
+
 ## 2.0.2 - 2026-08-28
 
 ### Fixed

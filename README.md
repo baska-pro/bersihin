@@ -1,7 +1,7 @@
 # Bersihin 🧼
 
 <p align="center">
-  <strong>Safe cross-platform cleaner for developer caches and temporary files.</strong>
+  <strong>Safe, informative cross-platform cleaner for temporary files and development caches.</strong>
 </p>
 
 <p align="center">
@@ -18,7 +18,7 @@
   <a href="./README.id.md">Bahasa Indonesia</a> ·
   <a href="./docs/INSTALL.md">Install</a> ·
   <a href="./docs/SAFETY.md">Safety</a> ·
-  <a href="./docs/MIGRATION_V1.md">Migration v1</a> ·
+  <a href="./docs/PLATFORMS.md">Platforms</a> ·
   <a href="./CHANGELOG.md">Changelog</a>
 </p>
 
@@ -26,86 +26,55 @@
 
 ## Overview
 
-**Bersihin** automatically detects Windows, Linux, Termux, WSL, macOS, BSD and other POSIX-like environments, then builds a cleanup plan appropriate for that platform.
+**Bersihin** automatically detects Windows, Linux, Termux, WSL, macOS, BSD and other POSIX-like environments and builds a conservative cleanup plan for the current platform.
 
-Version 2 is a rewrite focused on **safer cleanup**.
-
-> **v2.0.2 maintenance release:** fixes Unix/Termux quick installation through `curl ... | bash`, adds installer smoke tests, and clarifies installation instructions. Bersihin still keeps the safer v2 cleanup defaults: it does not blindly wipe `/tmp`, `~/.cache`, system logs, or package-manager data.
+The current `main` development state keeps the public version at **2.0.2** while improving the cleaner experience. The published v2 safety model is unchanged: Bersihin does not blindly wipe `/tmp`, the whole user cache, system logs, installed packages, or Docker data.
 
 ## Highlights
 
 - automatic platform detection;
-- Windows / Linux / Termux / WSL / macOS / BSD awareness;
-- safe dry-run/scan mode;
-- Python, pip, npm, Yarn, pnpm, Go, Cargo, Composer, Gradle and NuGet cache awareness;
-- optional browser cache cleanup;
+- responsive realtime progress for interactive terminals;
+- smooth percentage progress instead of a fast spinner;
+- compact Termux/phone layout and wider desktop layout;
+- detailed scan counters: checked, matched, eligible, too-new and skipped/pruned;
+- summary by target/category and reclaimable size;
+- automatic project-cache discovery;
+- Python/pip, npm/npx, Yarn, pnpm, Go, Cargo, Composer, Gradle and related development caches;
+- optional browser-cache cleanup;
 - optional Trash / Recycle Bin cleanup;
-- opt-in system package-cache cleanup;
-- opt-in aggressive user-cache cleanup;
-- minimum-age filter for temporary files;
-- user-ownership filtering for shared POSIX temp directories;
-- JSON scan output for automation;
-- built-in platform diagnostics (`--doctor`);
-- self-update from GitHub with syntax validation and backup;
-- Windows PowerShell installer and Unix/Termux installer;
+- opt-in system/package cache cleanup;
+- opt-in broad user-cache cleanup;
+- `--full` profile for a broader opt-in scan;
+- age filtering with `--older-than`;
+- JSON output for automation;
+- `--doctor` and `--list-targets` diagnostics;
 - no third-party Python runtime dependency.
-
-## Safety Defaults
-
-Bersihin intentionally does **not** run risky package operations such as `apt autoremove`, delete logs, delete application data, or run Docker system prune automatically.
-
-Extra scopes must be explicitly requested:
-
-```text
---system      system/package download caches
---trash       Trash / Windows Recycle Bin
---browsers    browser cache only
---aggressive  broad user cache directories
-```
-
-Read [docs/SAFETY.md](./docs/SAFETY.md) before using aggressive/system modes.
 
 ## Install
 
 ### Windows
 
-Quick install from PowerShell:
-
 ```powershell
 irm https://raw.githubusercontent.com/baska-pro/bersihin/main/install.ps1 | iex
 ```
 
-Or clone/download the repository and run:
+Or from a clone:
 
 ```powershell
 .\install.ps1
 ```
 
-or double-click:
-
-```text
-install.cmd
-```
-
 ### Linux / Termux / WSL / macOS
 
-Quick install — this command downloads **and executes** the installer:
+Quick install:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/baska-pro/bersihin/main/install.sh | bash
 ```
 
-> Running `curl -fsSL https://raw.githubusercontent.com/baska-pro/bersihin/main/install.sh` **without** `| bash` only prints the installer script; it does not install Bersihin.
+`curl` without `| bash` only prints the installer; it does not install Bersihin.
 
-To inspect the installer before running it:
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/baska-pro/bersihin/main/install.sh -o install.sh
-less install.sh
-bash install.sh
-```
-
-Or install from a Git clone:
+From a clone:
 
 ```bash
 git clone https://github.com/baska-pro/bersihin.git
@@ -114,30 +83,20 @@ chmod +x install.sh
 ./install.sh
 ```
 
-After installation:
+Verify:
 
 ```bash
-hash -r 2>/dev/null || true
 bersihin --version
 bersihin --doctor
-bersihin --dry-run --verbose
+bersihin --dry-run
 ```
-
-### Git clone
-
-```bash
-git clone https://github.com/baska-pro/bersihin.git
-cd bersihin
-```
-
-More: [Installation Guide](./docs/INSTALL.md)
 
 ## Usage
 
-First inspect the detected environment:
+Normal cleanup:
 
 ```bash
-bersihin --doctor
+bersihin
 ```
 
 Safe preview:
@@ -146,24 +105,24 @@ Safe preview:
 bersihin --dry-run
 ```
 
-Normal cleanup (asks for confirmation):
+Include fresh age-filtered entries:
 
 ```bash
-bersihin
+bersihin --older-than 0 --dry-run
 ```
 
-Non-interactive cleanup:
+Broader opt-in preview:
 
 ```bash
-bersihin --yes
+bersihin --full --dry-run
 ```
 
 Optional scopes:
 
 ```bash
-bersihin --browsers --dry-run
-bersihin --trash --dry-run
 bersihin --system --dry-run
+bersihin --trash --dry-run
+bersihin --browsers --dry-run
 bersihin --aggressive --dry-run
 ```
 
@@ -174,92 +133,93 @@ bersihin --category temp --dry-run
 bersihin --category dev --dry-run
 ```
 
-Temporary-file age threshold:
-
-```bash
-bersihin --older-than 7 --dry-run
-```
-
-Show every candidate path:
+Detailed candidate paths and hidden/missing targets:
 
 ```bash
 bersihin --dry-run --verbose
 ```
 
-Show selected cleanup roots/rules:
+Disable interactive progress:
 
 ```bash
-bersihin --list-targets
+bersihin --no-progress
 ```
 
-Machine-readable scan:
+Force ANSI progress when TTY detection is unusual:
+
+```bash
+bersihin --force-progress --dry-run
+```
+
+Machine-readable output:
 
 ```bash
 bersihin --dry-run --json
 ```
 
-Update / uninstall:
+Diagnostics:
+
+```bash
+bersihin --doctor
+bersihin --list-targets
+```
+
+Update/uninstall:
 
 ```bash
 bersihin --update
 bersihin --uninstall
 ```
 
+## Realtime Progress
+
+On an interactive terminal, Bersihin displays a progress bar on the same terminal line while it scans:
+
+```text
+[====>           ]  28% Project cache | 10/36 | chk 124 | 83 ms
+[==========>     ]  67% npm cache     | 24/36 | chk 382 | 410 ms
+[================] 100% Finalizing scan
+```
+
+On narrow terminals such as Termux, labels are shortened before counters are removed. On non-interactive output, JSON mode, or `--no-progress`, animation is disabled.
+
+Fast scans may finish internally in a few hundred milliseconds. Interactive display is intentionally smoothed briefly so progress remains visible to a human without slowing automation/JSON mode.
+
+## Safety Defaults
+
+The default profile intentionally avoids:
+
+- filesystem roots and the home directory itself;
+- symlink traversal;
+- other users' POSIX temporary entries;
+- system logs;
+- package autoremove;
+- Docker prune;
+- browser caches unless explicitly requested;
+- Trash/Recycle Bin unless explicitly requested;
+- broad generic user caches unless explicitly requested.
+
+Use `--full`, `--system`, `--trash`, `--browsers`, or `--aggressive` only after a dry run when needed.
+
+See [docs/SAFETY.md](./docs/SAFETY.md).
+
 ## Platform Behavior
 
-| Environment | Detection | Default scope |
+| Environment | Detection | Default behavior |
 |---|---|---|
-| Windows | native Windows/Python | user temp + development caches |
-| Linux | kernel + `/etc/os-release` | owned old temp + development caches |
-| Termux | `$PREFIX`, Termux paths | Termux tmp + dev caches + Termux package archives |
-| WSL | Microsoft kernel/WSL env | Linux/WSL temp + development caches |
+| Windows | native Windows/Python | user temp + known development caches |
+| Linux | kernel + `/etc/os-release` | owned old temp + user/development caches |
+| Termux | `$PREFIX` + Termux filesystem markers | Termux temp + dev caches + package archives |
+| WSL | Microsoft kernel/WSL environment | Linux/WSL temp + development caches |
 | macOS | Darwin | user temp + development caches |
 | BSD/POSIX | platform fallback | conservative temp + user development caches |
 
-## Update Workflow
+## Development Status
 
-For a Git clone:
-
-```bash
-git pull
-```
-
-For installed standalone copies:
-
-```bash
-bersihin --update
-```
-
-The built-in updater downloads `bersihin.py`, validates that it compiles, creates a `.bak` copy, and only then replaces the installed source.
-
-## Project Structure
-
-```text
-bersihin/
-├── bersihin.py
-├── install.sh
-├── install.ps1
-├── install.cmd
-├── uninstall.sh
-├── uninstall.ps1
-├── pyproject.toml
-├── requirements.txt
-├── README.md
-├── README.id.md
-├── CHANGELOG.md
-├── SECURITY.md
-├── CONTRIBUTING.md
-├── LICENSE
-├── VERSION
-├── docs/
-├── tests/
-└── .github/
-```
+The current repository `main` still reports version **2.0.2**. Feature work in `main` is tracked under **Unreleased** in `CHANGELOG.md`; the version should be bumped only when the next release is finalized.
 
 ## License
 
 MIT License. See [LICENSE](./LICENSE).
 
 Copyright © 2026 Baska ID.
-
-Maintained at [@baska-pro](https://github.com/baska-pro).

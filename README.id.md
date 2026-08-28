@@ -1,72 +1,54 @@
 # Bersihin 🧼
 
-**Bersihin** adalah CLI cleaner lintas platform yang otomatis mendeteksi **Windows, Linux, Termux, WSL, macOS, BSD, dan POSIX lainnya**.
+**Bersihin** adalah CLI cleaner lintas platform untuk **Windows, Linux, Termux, WSL, macOS, BSD, dan POSIX lainnya**.
 
-Versi **2.0.2** merupakan maintenance release dari rewrite v2 dengan fokus utama pada keamanan: tidak lagi menghapus seluruh `/tmp`, `~/.cache`, log sistem, atau menjalankan `apt autoremove` secara otomatis.
-
-> **Perbaikan v2.0.2:** quick installer Linux/Termux/WSL/macOS melalui `curl ... | bash` diperbaiki, installer sekarang diverifikasi otomatis, dan CI menguji mode install langsung maupun piped installer.
+Versi publik tetap **2.0.2** sementara pengembangan di branch `main` disempurnakan. Model keamanan v2 tetap dipertahankan: Bersihin tidak menghapus seluruh `/tmp`, seluruh cache user, log sistem, paket terpasang, atau data Docker secara membabi-buta.
 
 ## Fitur Utama
 
 - deteksi platform otomatis;
-- dry-run / scan aman;
-- cache Python/pip, npm, Yarn, pnpm, Go, Cargo, Composer, Gradle, NuGet;
-- temp files dengan batas umur;
-- hanya file milik user pada temp POSIX bersama;
+- progress realtime yang responsif di terminal interaktif;
+- progress bar persen yang halus, bukan spinner cepat;
+- layout compact otomatis untuk Termux/layar ponsel;
+- statistik scan `checked`, `matched`, `eligible`, `too-new`, dan `skipped/pruned`;
+- ringkasan target, kategori, jumlah entry, durasi, dan ukuran reclaimable;
+- deteksi cache project otomatis;
+- cache Python/pip, npm/npx, Yarn, pnpm, Go, Cargo, Composer, Gradle, dan tooling development lain;
+- temp file dengan filter umur;
 - opsi browser cache;
 - opsi Trash / Recycle Bin;
 - opsi package/system cache;
 - mode aggressive terpisah;
+- `--full` untuk preview/pembersihan opt-in yang lebih luas;
 - output JSON untuk automation;
-- `--doctor` untuk diagnosis platform;
-- self-update dengan validasi syntax + backup;
-- installer Windows dan Unix/Termux;
+- `--doctor` dan `--list-targets`;
 - tanpa dependency Python pihak ketiga.
 
 ## Instalasi
 
-### Clone
-
-```bash
-git clone https://github.com/baska-pro/bersihin.git
-cd bersihin
-```
-
 ### Windows
-
-Install cepat dari PowerShell:
 
 ```powershell
 irm https://raw.githubusercontent.com/baska-pro/bersihin/main/install.ps1 | iex
 ```
 
-Atau dari clone, PowerShell:
+Atau dari clone:
 
 ```powershell
 .\install.ps1
 ```
 
-atau jalankan `install.cmd`.
-
 ### Linux / Termux / WSL / macOS
 
-Install cepat — command berikut **mengunduh sekaligus menjalankan** installer:
+Install cepat:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/baska-pro/bersihin/main/install.sh | bash
 ```
 
-> Jika hanya menjalankan `curl -fsSL https://raw.githubusercontent.com/baska-pro/bersihin/main/install.sh` tanpa `| bash`, isi script hanya ditampilkan ke terminal dan Bersihin **belum terpasang**.
+`curl` tanpa `| bash` hanya menampilkan isi installer dan **belum menginstal Bersihin**.
 
-Jika ingin memeriksa installer lebih dulu:
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/baska-pro/bersihin/main/install.sh -o install.sh
-less install.sh
-bash install.sh
-```
-
-Atau dari clone:
+Dari clone:
 
 ```bash
 git clone https://github.com/baska-pro/bersihin.git
@@ -75,28 +57,15 @@ chmod +x install.sh
 ./install.sh
 ```
 
-Setelah instalasi:
+Verifikasi:
 
 ```bash
-hash -r 2>/dev/null || true
 bersihin --version
 bersihin --doctor
-bersihin --dry-run --verbose
+bersihin --dry-run
 ```
 
 ## Penggunaan
-
-Cek hasil deteksi:
-
-```bash
-bersihin --doctor
-```
-
-Preview tanpa menghapus:
-
-```bash
-bersihin --dry-run
-```
 
 Pembersihan normal:
 
@@ -104,18 +73,30 @@ Pembersihan normal:
 bersihin
 ```
 
-Tanpa konfirmasi:
+Preview aman:
 
 ```bash
-bersihin --yes
+bersihin --dry-run
 ```
 
-Tambahan opsional:
+Ikutkan file/cache baru yang biasanya tertahan filter umur:
 
 ```bash
-bersihin --browsers --dry-run
-bersihin --trash --dry-run
+bersihin --older-than 0 --dry-run
+```
+
+Preview lebih luas:
+
+```bash
+bersihin --full --dry-run
+```
+
+Scope tambahan:
+
+```bash
 bersihin --system --dry-run
+bersihin --trash --dry-run
+bersihin --browsers --dry-run
 bersihin --aggressive --dry-run
 ```
 
@@ -126,22 +107,22 @@ bersihin --category temp --dry-run
 bersihin --category dev --dry-run
 ```
 
-File temp minimal berumur 7 hari:
-
-```bash
-bersihin --older-than 7 --dry-run
-```
-
-Lihat semua path kandidat:
+Tampilkan semua kandidat dan target yang tidak tersedia:
 
 ```bash
 bersihin --dry-run --verbose
 ```
 
-Lihat target/rule yang dipilih:
+Matikan progress realtime:
 
 ```bash
-bersihin --list-targets
+bersihin --no-progress
+```
+
+Paksa progress ANSI jika deteksi TTY terminal bermasalah:
+
+```bash
+bersihin --force-progress --dry-run
 ```
 
 JSON:
@@ -150,40 +131,80 @@ JSON:
 bersihin --dry-run --json
 ```
 
-Update:
+Diagnostik:
+
+```bash
+bersihin --doctor
+bersihin --list-targets
+```
+
+Update / uninstall:
 
 ```bash
 bersihin --update
-```
-
-Uninstall:
-
-```bash
 bersihin --uninstall
 ```
 
+## Progress Realtime
+
+Pada terminal interaktif, satu baris progress akan diperbarui selama scan:
+
+```text
+[====>           ]  28% Project cache | 10/36 | chk 124 | 83 ms
+[==========>     ]  67% npm cache     | 24/36 | chk 382 | 410 ms
+[================] 100% Finalizing scan
+```
+
+Pada Termux atau terminal sempit, nama target dipersingkat lebih dulu agar angka progress dan counter tetap terlihat.
+
+Jika scan aslinya selesai sangat cepat, tampilan interaktif dibuat sedikit lebih halus supaya progress tetap sempat terlihat. Delay visual ini tidak diterapkan pada JSON, `--no-progress`, atau output non-interaktif.
+
+## Ringkasan Scan
+
+Setelah scan, Bersihin menjelaskan:
+
+- berapa target yang dipilih;
+- berapa target memiliki data;
+- berapa target sudah bersih;
+- berapa target tidak tersedia;
+- jumlah entry diperiksa;
+- jumlah entry cocok;
+- jumlah yang terlalu baru menurut age filter;
+- jumlah yang di-prune/skip;
+- kandidat unik;
+- ukuran data yang dapat dibersihkan;
+- durasi scan.
+
+Target `MISSING` tidak memenuhi layar secara default. Gunakan `--verbose` bila ingin melihat semuanya.
+
 ## Mode Keamanan
 
-Secara default Bersihin **tidak**:
+Default Bersihin tetap menghindari:
 
-- menjalankan `apt autoremove`;
-- menghapus log sistem;
-- menghapus seluruh cache user secara membabi-buta;
-- membersihkan Recycle Bin/Trash tanpa opsi;
-- membersihkan browser tanpa opsi;
-- menjalankan Docker prune.
+- filesystem root dan home directory itu sendiri;
+- mengikuti symlink;
+- file temp milik user lain;
+- system log;
+- package autoremove;
+- Docker prune;
+- browser cache tanpa opsi;
+- Trash/Recycle Bin tanpa opsi;
+- broad generic cache tanpa opsi.
 
-Scope tambahan harus dipilih sendiri dengan `--system`, `--trash`, `--browsers`, atau `--aggressive`.
+Untuk scope yang lebih luas, lakukan preview terlebih dahulu:
+
+```bash
+bersihin --full --dry-run
+```
 
 Baca [docs/SAFETY.md](./docs/SAFETY.md).
+
+## Status Pengembangan
+
+Repository `main` sementara tetap memakai versi **2.0.2**. Perubahan pengembangan dicatat pada bagian **Unreleased** di `CHANGELOG.md`. Nomor versi baru dinaikkan setelah fitur ini benar-benar final.
 
 ## Lisensi
 
 MIT License — lihat [LICENSE](./LICENSE).
 
 Copyright © 2026 Baska ID. Maintainer: [@baska-pro](https://github.com/baska-pro).
-
-
-## Migrasi dari v1
-
-Jika sebelumnya memakai Bersihin Bash v1, baca [docs/MIGRATION_V1.md](./docs/MIGRATION_V1.md).
