@@ -7,6 +7,7 @@ on:
 jobs:
   python:
     strategy:
+      fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
         python-version: ["3.9", "3.12"]
@@ -20,6 +21,8 @@ jobs:
         run: python -m py_compile bersihin.py
       - name: Unit tests
         run: python -m unittest discover -s tests -v
+      - name: Version
+        run: python bersihin.py --version
       - name: Doctor
         run: python bersihin.py --doctor
       - name: Dry run
@@ -45,7 +48,9 @@ jobs:
             $errors = $null
             [System.Management.Automation.Language.Parser]::ParseFile($file, [ref]$tokens, [ref]$errors) | Out-Null
             if ($errors.Count -gt 0) {
-              $errors | ForEach-Object { Write-Error "$file: $($_.Message)" }
+              $errors | ForEach-Object {
+                Write-Error ("{0}: {1}" -f $file, $_.Message)
+              }
               $failed = $true
             }
           }
